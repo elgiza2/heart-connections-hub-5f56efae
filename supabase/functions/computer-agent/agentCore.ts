@@ -366,7 +366,7 @@ export async function handleComputerAgent(payload: ComputerPayload | null): Prom
 
       const res = await callUpstream(
         supabase,
-        { path: `/v1/tasks/${task.provider_task_id}`, method: "GET" },
+        { path: `/tasks/${task.provider_task_id}`, method: "GET" },
         task.key_id,
       );
       if (!res.ok) {
