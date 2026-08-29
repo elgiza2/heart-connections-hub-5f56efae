@@ -27,6 +27,10 @@ export interface ComputerEvent {
 
 const SIGN_IN_MESSAGE = "سجّل الدخول أولاً لتشغيل مهام الكمبيوتر. / Please sign in to run computer tasks.";
 
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+const COMPUTER_AGENT_URL = `${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/computer-agent`;
+
+
 async function call<T>(body: Record<string, unknown>): Promise<T> {
   let { data: sess } = await supabase.auth.getSession();
   let token = sess.session?.access_token;
