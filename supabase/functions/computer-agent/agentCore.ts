@@ -96,7 +96,7 @@ async function markFailure(
 
 interface UpstreamCall {
   path: string;
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "PATCH";
   body?: unknown;
 }
 
