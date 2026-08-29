@@ -50,15 +50,36 @@ async function authenticate(supabase: SupabaseClient, token?: string) {
   return data?.user ?? null;
 }
 
-/** Active keys, least-recently-used first, skipping keys in cooldown. */
+/**
+ * Active keys, least-recently-used first, skipping keys in cooldown.
+ * Two pools are merged: the dedicated `manus_keys` table (admin /m page) and
+ * the shared `provider_api_keys` pool under provider "c" (the /k page).
+ */
 async function availableKeys(supabase: SupabaseClient): Promise<KeyRow[]> {
   const { data } = await supabase
     .from("manus_keys")
     .select("id,api_key,status,failure_count,cooldown_until,last_used_at,priority")
     .eq("status", "active");
+
+  const { data: pool } = await supabase
+    .from("provider_api_keys")
+    .select("id,api_key,status,failure_count,last_used_at")
+    .eq("provider", "c")
+    .eq("status", "active");
+
+  const poolRows: KeyRow[] = ((pool ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    id: `pool:${String(r.id)}`,
+    api_key: String(r.api_key ?? ""),
+    status: "active",
+    failure_count: Number(r.failure_count ?? 0),
+    cooldown_until: null,
+    last_used_at: (r.last_used_at as string | null) ?? null,
+    priority: 0,
+  }));
+
   const now = Date.now();
-  return ((data ?? []) as KeyRow[])
-    .filter((k) => !k.cooldown_until || new Date(k.cooldown_until).getTime() <= now)
+  return [...((data ?? []) as KeyRow[]), ...poolRows]
+    .filter((k) => k.api_key && (!k.cooldown_until || new Date(k.cooldown_until).getTime() <= now))
     .sort((a, b) => {
       const pa = a.priority ?? 0;
       const pb = b.priority ?? 0;
@@ -76,6 +97,18 @@ async function markFailure(
   message: string,
   retryAfterSec?: number,
 ) {
+  if (key.id === "env") return; // env-configured fallback key has no DB row
+
+  if (key.id.startsWith("pool:")) {
+    const patch: Record<string, unknown> = {
+      failure_count: (key.failure_count ?? 0) + 1,
+      last_error: `${status}: ${message}`.slice(0, 500),
+    };
+    if (status === 401 || status === 402 || status === 403) patch.status = "blocked";
+    await supabase.from("provider_api_keys").update(patch).eq("id", key.id.slice(5));
+    return;
+  }
+
   const patch: Record<string, unknown> = {
     failure_count: (key.failure_count ?? 0) + 1,
     last_error: `${status}: ${message}`.slice(0, 500),
@@ -90,8 +123,22 @@ async function markFailure(
   } else {
     patch.cooldown_until = new Date(Date.now() + 30_000).toISOString();
   }
-  if (key.id === "env") return; // env-configured fallback key has no DB row
   await supabase.from("manus_keys").update(patch).eq("id", key.id);
+}
+
+async function markSuccess(supabase: SupabaseClient, key: KeyRow) {
+  if (key.id === "env") return;
+  if (key.id.startsWith("pool:")) {
+    await supabase
+      .from("provider_api_keys")
+      .update({ last_used_at: new Date().toISOString(), failure_count: 0, last_error: null })
+      .eq("id", key.id.slice(5));
+    return;
+  }
+  await supabase
+    .from("manus_keys")
+    .update({ last_used_at: new Date().toISOString(), last_error: null })
+    .eq("id", key.id);
 }
 
 interface UpstreamCall {
@@ -161,12 +208,7 @@ async function callUpstream(
         data = { raw: text };
       }
       if (resp.ok) {
-        if (key.id !== "env") {
-          await supabase
-            .from("manus_keys")
-            .update({ last_used_at: new Date().toISOString(), last_error: null })
-            .eq("id", key.id);
-        }
+        await markSuccess(supabase, key);
         return { ok: true, data, key };
       }
       const message = String(data?.error?.message || data?.message || data?.error || text || "").slice(0, 300);
@@ -327,7 +369,10 @@ export async function handleComputerAgent(payload: ComputerPayload | null): Prom
         .from("computer_tasks")
         .update({
           provider_task_id: providerId || null,
-          key_id: res.key.id,
+          // key_id is a uuid FK to manus_keys, so shared-pool / env keys stay null.
+          key_id: /^[0-9a-f-]{36}$/i.test(res.key.id) && !res.key.id.startsWith("pool:")
+            ? res.key.id
+            : null,
           status: "running",
           updated_at: new Date().toISOString(),
         })
