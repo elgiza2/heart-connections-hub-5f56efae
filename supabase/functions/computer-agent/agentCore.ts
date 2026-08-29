@@ -7,7 +7,8 @@
  */
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const API_BASE = Deno.env.get("MANUS_API_BASE") || "https://api.manus.ai";
+// Browser Use Cloud API v2 — https://docs.browser-use.com/cloud/api-v2
+const API_BASE = Deno.env.get("BROWSER_USE_API_BASE") || "https://api.browser-use.com/api/v2";
 
 export type ComputerAction = "create" | "poll" | "stop" | "list";
 
