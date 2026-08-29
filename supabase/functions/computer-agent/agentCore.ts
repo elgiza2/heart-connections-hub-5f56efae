@@ -309,12 +309,13 @@ export async function handleComputerAgent(payload: ComputerPayload | null): Prom
         : prompt;
 
       const res = await callUpstream(supabase, {
-        path: "/v1/tasks",
+        path: "/tasks",
         method: "POST",
         body: {
-          prompt: fullPrompt,
-          mode: "quality",
-          attachments: payload.attachments?.length ? payload.attachments : undefined,
+          task: fullPrompt.slice(0, 50_000),
+          llm: Deno.env.get("BROWSER_USE_LLM") || undefined,
+          maxSteps: 100,
+          vision: "auto",
         },
       });
 
