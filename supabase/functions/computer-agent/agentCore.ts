@@ -230,46 +230,30 @@ function extractProgress(data: any): {
   status: string;
   progress: string | null;
   resultText: string | null;
-  files: { name: string; url: string; type?: string }[];
+  files: { id: string; name: string }[];
   events: { title: string; detail?: string; url?: string }[];
 } {
-  const status = normalizeStatus(data?.status ?? data?.task_status ?? data?.state);
-  const rawEvents: any[] = Array.isArray(data?.events)
-    ? data.events
-    : Array.isArray(data?.steps)
-      ? data.steps
-      : Array.isArray(data?.messages)
-        ? data.messages
-        : [];
+  const status = normalizeStatus(data?.status);
+  const rawEvents: any[] = Array.isArray(data?.steps) ? data.steps : [];
   const events = rawEvents
     .map((e) => ({
-      title: String(e?.title || e?.type || e?.action || e?.tool || "Step").slice(0, 160),
-      detail: typeof e?.content === "string" ? e.content.slice(0, 800) : undefined,
+      title: String(e?.nextGoal || e?.evaluationPreviousGoal || `Step ${e?.number ?? ""}`).slice(0, 160),
+      detail:
+        typeof e?.memory === "string"
+          ? e.memory.slice(0, 800)
+          : Array.isArray(e?.actions)
+            ? e.actions.join(", ").slice(0, 800)
+            : undefined,
       url: typeof e?.url === "string" ? e.url : undefined,
     }))
     .slice(-50);
 
-  const rawFiles: any[] = Array.isArray(data?.attachments)
-    ? data.attachments
-    : Array.isArray(data?.files)
-      ? data.files
-      : Array.isArray(data?.outputs)
-        ? data.outputs
-        : [];
+  const rawFiles: any[] = Array.isArray(data?.outputFiles) ? data.outputFiles : [];
   const files = rawFiles
-    .filter((f) => f?.url || f?.file_url || f?.download_url)
-    .map((f) => ({
-      name: String(f?.name || f?.filename || "file"),
-      url: String(f?.url || f?.file_url || f?.download_url),
-      type: typeof f?.content_type === "string" ? f.content_type : undefined,
-    }));
+    .filter((f) => f?.id)
+    .map((f) => ({ id: String(f.id), name: String(f?.fileName || "file") }));
 
-  const resultText =
-    (typeof data?.result === "string" && data.result) ||
-    (typeof data?.output === "string" && data.output) ||
-    (typeof data?.summary === "string" && data.summary) ||
-    (typeof data?.final_answer === "string" && data.final_answer) ||
-    null;
+  const resultText = typeof data?.output === "string" && data.output ? data.output : null;
 
   const progress = events.length ? events[events.length - 1].title : null;
   return { status, progress, resultText, files, events };
