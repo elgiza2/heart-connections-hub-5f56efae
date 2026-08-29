@@ -37,15 +37,20 @@ async function call<T>(body: Record<string, unknown>): Promise<T> {
   }
   if (!token) throw new Error(SIGN_IN_MESSAGE);
 
-  const resp = await fetch("/api/computer-agent", {
+  const resp = await fetch(COMPUTER_AGENT_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      apikey: SUPABASE_ANON_KEY,
+    },
     body: JSON.stringify({ ...body, token }),
   });
   const data = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
   if (resp.status === 401) throw new Error(SIGN_IN_MESSAGE);
   if (!resp.ok) throw new Error((data.error as string) || `HTTP ${resp.status}`);
   return data as T;
+
 }
 
 export function createComputerTask(input: {
