@@ -1,4 +1,4 @@
-/** @doc Browser client for the Computer Agent endpoint (/api/computer-agent). */
+/** @doc Browser client for the Computer Agent (Supabase edge function `computer-agent`). */
 import { supabase } from "@/integrations/supabase/client";
 
 export interface ComputerFile {
