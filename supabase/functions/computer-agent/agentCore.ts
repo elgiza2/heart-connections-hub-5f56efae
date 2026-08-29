@@ -369,7 +369,10 @@ export async function handleComputerAgent(payload: ComputerPayload | null): Prom
         .from("computer_tasks")
         .update({
           provider_task_id: providerId || null,
-          key_id: res.key.id,
+          // key_id is a uuid FK to manus_keys, so shared-pool / env keys stay null.
+          key_id: /^[0-9a-f-]{36}$/i.test(res.key.id) && !res.key.id.startsWith("pool:")
+            ? res.key.id
+            : null,
           status: "running",
           updated_at: new Date().toISOString(),
         })
