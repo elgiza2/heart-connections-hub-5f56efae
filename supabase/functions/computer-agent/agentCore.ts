@@ -173,7 +173,8 @@ async function callUpstream(
       const retryAfter = Number(resp.headers.get("retry-after") || "") || undefined;
       await markFailure(supabase, key, resp.status, message, retryAfter);
       last = { ok: false, status: resp.status, message };
-      if (resp.status === 400) return last; // bad request — rotating won't help
+      // Bad request / validation errors are our fault — rotating keys won't help.
+      if (resp.status === 400 || resp.status === 422 || resp.status === 404) return last;
     } catch (err) {
       const message = err instanceof Error ? err.message : "network_error";
       await markFailure(supabase, key, 500, message);
