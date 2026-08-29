@@ -208,12 +208,7 @@ async function callUpstream(
         data = { raw: text };
       }
       if (resp.ok) {
-        if (key.id !== "env") {
-          await supabase
-            .from("manus_keys")
-            .update({ last_used_at: new Date().toISOString(), last_error: null })
-            .eq("id", key.id);
-        }
+        await markSuccess(supabase, key);
         return { ok: true, data, key };
       }
       const message = String(data?.error?.message || data?.message || data?.error || text || "").slice(0, 300);
