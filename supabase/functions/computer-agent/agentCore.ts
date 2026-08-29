@@ -7,7 +7,8 @@
  */
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const API_BASE = Deno.env.get("MANUS_API_BASE") || "https://api.manus.ai";
+// Browser Use Cloud API v2 — https://docs.browser-use.com/cloud/api-v2
+const API_BASE = Deno.env.get("BROWSER_USE_API_BASE") || "https://api.browser-use.com/api/v2";
 
 export type ComputerAction = "create" | "poll" | "stop" | "list";
 
@@ -95,7 +96,7 @@ async function markFailure(
 
 interface UpstreamCall {
   path: string;
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "PATCH";
   body?: unknown;
 }
 
@@ -123,11 +124,12 @@ async function callUpstream(
   }
   // Fallback: a single key configured as a server secret, used when the
   // database key pool is empty (e.g. fresh install).
-  if (keys.length === 0 && Deno.env.get("MANUS_API_KEY")) {
+  const envKey = Deno.env.get("BROWSER_USE_API_KEY");
+  if (keys.length === 0 && envKey) {
     keys = [
       {
         id: "env",
-        api_key: Deno.env.get("MANUS_API_KEY")!,
+        api_key: envKey,
         status: "active",
         failure_count: 0,
         cooldown_until: null,
@@ -147,8 +149,7 @@ async function callUpstream(
         method: call.method,
         headers: {
           "Content-Type": "application/json",
-          API_KEY: key.api_key,
-          Authorization: `Bearer ${key.api_key}`,
+          "X-Browser-Use-API-Key": key.api_key,
         },
         body: call.body ? JSON.stringify(call.body) : undefined,
       });
@@ -172,7 +173,8 @@ async function callUpstream(
       const retryAfter = Number(resp.headers.get("retry-after") || "") || undefined;
       await markFailure(supabase, key, resp.status, message, retryAfter);
       last = { ok: false, status: resp.status, message };
-      if (resp.status === 400) return last; // bad request — rotating won't help
+      // Bad request / validation errors are our fault — rotating keys won't help.
+      if (resp.status === 400 || resp.status === 422 || resp.status === 404) return last;
     } catch (err) {
       const message = err instanceof Error ? err.message : "network_error";
       await markFailure(supabase, key, 500, message);
@@ -229,46 +231,30 @@ function extractProgress(data: any): {
   status: string;
   progress: string | null;
   resultText: string | null;
-  files: { name: string; url: string; type?: string }[];
+  files: { id: string; name: string }[];
   events: { title: string; detail?: string; url?: string }[];
 } {
-  const status = normalizeStatus(data?.status ?? data?.task_status ?? data?.state);
-  const rawEvents: any[] = Array.isArray(data?.events)
-    ? data.events
-    : Array.isArray(data?.steps)
-      ? data.steps
-      : Array.isArray(data?.messages)
-        ? data.messages
-        : [];
+  const status = normalizeStatus(data?.status);
+  const rawEvents: any[] = Array.isArray(data?.steps) ? data.steps : [];
   const events = rawEvents
     .map((e) => ({
-      title: String(e?.title || e?.type || e?.action || e?.tool || "Step").slice(0, 160),
-      detail: typeof e?.content === "string" ? e.content.slice(0, 800) : undefined,
+      title: String(e?.nextGoal || e?.evaluationPreviousGoal || `Step ${e?.number ?? ""}`).slice(0, 160),
+      detail:
+        typeof e?.memory === "string"
+          ? e.memory.slice(0, 800)
+          : Array.isArray(e?.actions)
+            ? e.actions.join(", ").slice(0, 800)
+            : undefined,
       url: typeof e?.url === "string" ? e.url : undefined,
     }))
     .slice(-50);
 
-  const rawFiles: any[] = Array.isArray(data?.attachments)
-    ? data.attachments
-    : Array.isArray(data?.files)
-      ? data.files
-      : Array.isArray(data?.outputs)
-        ? data.outputs
-        : [];
+  const rawFiles: any[] = Array.isArray(data?.outputFiles) ? data.outputFiles : [];
   const files = rawFiles
-    .filter((f) => f?.url || f?.file_url || f?.download_url)
-    .map((f) => ({
-      name: String(f?.name || f?.filename || "file"),
-      url: String(f?.url || f?.file_url || f?.download_url),
-      type: typeof f?.content_type === "string" ? f.content_type : undefined,
-    }));
+    .filter((f) => f?.id)
+    .map((f) => ({ id: String(f.id), name: String(f?.fileName || "file") }));
 
-  const resultText =
-    (typeof data?.result === "string" && data.result) ||
-    (typeof data?.output === "string" && data.output) ||
-    (typeof data?.summary === "string" && data.summary) ||
-    (typeof data?.final_answer === "string" && data.final_answer) ||
-    null;
+  const resultText = typeof data?.output === "string" && data.output ? data.output : null;
 
   const progress = events.length ? events[events.length - 1].title : null;
   return { status, progress, resultText, files, events };
@@ -308,12 +294,13 @@ export async function handleComputerAgent(payload: ComputerPayload | null): Prom
         : prompt;
 
       const res = await callUpstream(supabase, {
-        path: "/v1/tasks",
+        path: "/tasks",
         method: "POST",
         body: {
-          prompt: fullPrompt,
-          mode: "quality",
-          attachments: payload.attachments?.length ? payload.attachments : undefined,
+          task: fullPrompt.slice(0, 50_000),
+          llm: Deno.env.get("BROWSER_USE_LLM") || undefined,
+          maxSteps: 100,
+          vision: "auto",
         },
       });
 
@@ -365,7 +352,7 @@ export async function handleComputerAgent(payload: ComputerPayload | null): Prom
 
       const res = await callUpstream(
         supabase,
-        { path: `/v1/tasks/${task.provider_task_id}`, method: "GET" },
+        { path: `/tasks/${task.provider_task_id}`, method: "GET" },
         task.key_id,
       );
       if (!res.ok) {
@@ -387,11 +374,24 @@ export async function handleComputerAgent(payload: ComputerPayload | null): Prom
         if (fresh.length) await supabase.from("computer_events").insert(fresh);
       }
 
+      // Output files are referenced by id upstream; resolve short-lived
+      // download URLs only once the task produced them.
+      const resolvedFiles: { name: string; url: string }[] = [];
+      for (const f of info.files) {
+        const dl = await callUpstream(
+          supabase,
+          { path: `/files/tasks/${task.provider_task_id}/output-files/${f.id}`, method: "GET" },
+          task.key_id,
+        );
+        const url = dl.ok ? String((dl.data as any)?.downloadUrl ?? "") : "";
+        if (url) resolvedFiles.push({ name: f.name, url });
+      }
+
       const patch = {
         status: info.status,
         progress: info.progress,
         result_text: info.resultText ?? task.result_text,
-        files: info.files.length ? info.files : task.files,
+        files: resolvedFiles.length ? resolvedFiles : task.files,
         updated_at: new Date().toISOString(),
       };
       await supabase.from("computer_tasks").update(patch).eq("id", task.id);
@@ -423,7 +423,11 @@ export async function handleComputerAgent(payload: ComputerPayload | null): Prom
       if (task.provider_task_id) {
         await callUpstream(
           supabase,
-          { path: `/v1/tasks/${task.provider_task_id}/stop`, method: "POST", body: {} },
+          {
+            path: `/tasks/${task.provider_task_id}`,
+            method: "PATCH",
+            body: { action: "stop_task_and_session" },
+          },
           task.key_id,
         );
       }
