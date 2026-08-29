@@ -7,6 +7,18 @@
  * Brand names (GitHub, Notion, Stripe…) and model names are intentionally kept.
  */
 export const EGYPTIAN_PAGES_3: Record<string, string> = {
+  // ------------------------------------------------------- ترحيب / كاروسيل
+  Build: "ابني",
+  "Start now": "ابدأ دلوقتي",
+  Waiting: "مستني",
+  "Go to step 1": "روح للخطوة 1",
+  "Go to step 2": "روح للخطوة 2",
+  "Go to step 3": "روح للخطوة 3",
+  "Go to step 4": "روح للخطوة 4",
+  "Tell Megsy once. It does the whole job.": "قول لـ Megsy مرة واحدة… وهو يعمل الشغل كله.",
+  "Megsy writes the work in front of you.": "Megsy بيشتغل قدامك خطوة بخطوة.",
+  "you@example.com": "أنت@example.com",
+
   // ------------------------------------------------------------- toasts: عام
   "Link copied": "اتنسخ اللينك",
   "Code copied": "اتنسخ الكود",
