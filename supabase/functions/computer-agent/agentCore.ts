@@ -148,8 +148,7 @@ async function callUpstream(
         method: call.method,
         headers: {
           "Content-Type": "application/json",
-          API_KEY: key.api_key,
-          Authorization: `Bearer ${key.api_key}`,
+          "X-Browser-Use-API-Key": key.api_key,
         },
         body: call.body ? JSON.stringify(call.body) : undefined,
       });
