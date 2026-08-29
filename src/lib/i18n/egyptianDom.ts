@@ -2,13 +2,16 @@ import { EGYPTIAN_DICT } from "./egyptianDict";
 import { EGYPTIAN_EXTRA } from "./egyptianExtra";
 import { EGYPTIAN_PAGES } from "./egyptianPages";
 import { EGYPTIAN_PAGES_2 } from "./egyptianPages2";
+import { EGYPTIAN_PAGES_3 } from "./egyptianPages3";
 
 const DICT: Record<string, string> = {
   ...EGYPTIAN_DICT,
   ...EGYPTIAN_EXTRA,
   ...EGYPTIAN_PAGES,
   ...EGYPTIAN_PAGES_2,
+  ...EGYPTIAN_PAGES_3,
 };
+
 
 
 /**
