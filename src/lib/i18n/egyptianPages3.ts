@@ -7,7 +7,37 @@
  * Brand names (GitHub, Notion, Stripe…) and model names are intentionally kept.
  */
 export const EGYPTIAN_PAGES_3: Record<string, string> = {
+  // ------------------------------------------------- بقايا نصوص (دفعة أخيرة)
+  Choose: "اختار",
+  Deleted: "اتمسح",
+  Downloaded: "اتنزّل",
+  Imported: "اتستورد",
+  Published: "اتنشر",
+  Removed: "اتشال",
+  Verified: "اتأكد",
+  "Image is too large (max 5MB)": "الصورة كبيرة أوي (أقصى حد 5 ميجا)",
+  "No suggestions returned": "مفيش اقتراحات رجعت",
+  "Learn about Megsy AI": "اعرف أكتر عن Megsy AI",
+  "browser screenshot": "صورة شاشة المتصفح",
+  "Megsy OS screenshot": "صورة شاشة Megsy OS",
+  "Megsy logo": "شعار Megsy",
+  "Smooth oil-painted document preview cover": "غلاف معاينة المستند برسم زيتي ناعم",
+  "You'll need to sign in again to access your chats.":
+    "هتحتاج تسجّل دخول تاني عشان توصل لمحادثاتك.",
+  "How you'd like Megsy to respond": "تحب Megsy يرد عليك إزاي",
+  "You're all caught up": "خلصت كل حاجة",
+  "Update the email linked to your account. We'll send a confirmation link to both addresses before the change takes effect.":
+    "حدّث الإيميل المربوط بحسابك. هنبعت لينك تأكيد للإيميلين قبل التغيير يتم.",
+  "Enter the new email address. You'll need to confirm from both inboxes to complete the change.":
+    "اكتب الإيميل الجديد. لازم تأكّد من الإيميلين عشان التغيير يكتمل.",
+  "Choose a strong password with at least 8 characters. You'll stay signed in on this device.":
+    "اختار باسورد قوي مش أقل من 8 حروف. هتفضل مسجّل دخول على الجهاز ده.",
+  "Didn't catch that — try again": "مسمعتش كلامك — جرّب تاني",
+  "Couldn't start the microphone": "مقدرناش نشغّل المايك",
+  "Please tell us why you're cancelling": "قولنا بتلغي ليه",
+
   // ------------------------------------------------------- ترحيب / كاروسيل
+
   Build: "ابني",
   "Start now": "ابدأ دلوقتي",
   Waiting: "مستني",
