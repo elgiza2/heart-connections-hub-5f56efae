@@ -124,11 +124,12 @@ async function callUpstream(
   }
   // Fallback: a single key configured as a server secret, used when the
   // database key pool is empty (e.g. fresh install).
-  if (keys.length === 0 && Deno.env.get("MANUS_API_KEY")) {
+  const envKey = Deno.env.get("BROWSER_USE_API_KEY");
+  if (keys.length === 0 && envKey) {
     keys = [
       {
         id: "env",
-        api_key: Deno.env.get("MANUS_API_KEY")!,
+        api_key: envKey,
         status: "active",
         failure_count: 0,
         cooldown_until: null,
