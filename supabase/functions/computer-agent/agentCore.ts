@@ -127,7 +127,7 @@ async function callUpstream(
     keys = [
       {
         id: "env",
-        api_key: Deno.env.get("MANUS_API_KEY"),
+        api_key: Deno.env.get("MANUS_API_KEY")!,
         status: "active",
         failure_count: 0,
         cooldown_until: null,
