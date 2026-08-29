@@ -424,7 +424,11 @@ export async function handleComputerAgent(payload: ComputerPayload | null): Prom
       if (task.provider_task_id) {
         await callUpstream(
           supabase,
-          { path: `/v1/tasks/${task.provider_task_id}/stop`, method: "POST", body: {} },
+          {
+            path: `/tasks/${task.provider_task_id}`,
+            method: "PATCH",
+            body: { action: "stop_task_and_session" },
+          },
           task.key_id,
         );
       }
