@@ -373,11 +373,24 @@ export async function handleComputerAgent(payload: ComputerPayload | null): Prom
         if (fresh.length) await supabase.from("computer_events").insert(fresh);
       }
 
+      // Output files are referenced by id upstream; resolve short-lived
+      // download URLs only once the task produced them.
+      const resolvedFiles: { name: string; url: string }[] = [];
+      for (const f of info.files) {
+        const dl = await callUpstream(
+          supabase,
+          { path: `/files/tasks/${task.provider_task_id}/output-files/${f.id}`, method: "GET" },
+          task.key_id,
+        );
+        const url = dl.ok ? String((dl.data as any)?.downloadUrl ?? "") : "";
+        if (url) resolvedFiles.push({ name: f.name, url });
+      }
+
       const patch = {
         status: info.status,
         progress: info.progress,
         result_text: info.resultText ?? task.result_text,
-        files: info.files.length ? info.files : task.files,
+        files: resolvedFiles.length ? resolvedFiles : task.files,
         updated_at: new Date().toISOString(),
       };
       await supabase.from("computer_tasks").update(patch).eq("id", task.id);
